@@ -17,6 +17,7 @@
    ================================================================ */
 
 window.FIREBASE_CONFIG = {
+  // Fixed Firebase config
   apiKey:            "AIzaSyB5DCn4FruD5qKAQf-x7pZwbW23WQxjESY",
   authDomain:        "gare-card-finance-os.firebaseapp.com",
   projectId:         "gare-card-finance-os",
