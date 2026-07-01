@@ -197,6 +197,7 @@ function BulkModal({ store, onClose }) {
     setBusy(true);
     setStatus({ msg: 'AI กำลังอ่านทุกรายการ…' });
     try {
+      const base64 = dataUrl.split(',')[1];
       const mime = (dataUrl.match(/data:(.*?);/) || [])[1] || 'image/jpeg';
       const apiResponse = await fetch('/api/read-slip', {
         method: 'POST',
