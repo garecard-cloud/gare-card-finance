@@ -1,127 +1,20 @@
 /* ============================================================
-   GARE CARD — Finance ledger + AI slip reader
+   GARE CARD — Finance ledger
    ============================================================ */
 
 const FIN_ICON = { income: '↘', expense: '↗' };
-
-function fileToBase64(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
-
-function extractJSON(text) {
-  if (!text) return null;
-  const m = text.match(/\{[\s\S]*\}/);
-  if (!m) return null;
-  try { return JSON.parse(m[0]); } catch (e) { return null; }
-}
-
-/* ----- AI slip dropzone ----- */
-function SlipReader({ onResult }) {
-  const G = window.GC;
-  const [over, setOver] = React.useState(false);
-  const [busy, setBusy] = React.useState(false);
-  const [preview, setPreview] = React.useState(null);
-  const [status, setStatus] = React.useState(null);
-  const inputRef = React.useRef();
-
-  async function handleFile(file) {
-    if (!file || !file.type.startsWith('image/')) {
-      setStatus({ err: 'ไฟล์ต้องเป็นรูปภาพ' });
-      return;
-    }
-    const dataUrl = await fileToBase64(file);
-    setPreview(dataUrl);
-    setBusy(true);
-    setStatus({ msg: 'AI กำลังอ่านสลิป…' });
-    try {
-      const base64 = dataUrl.split(',')[1];
-      const apiResponse = await fetch('/api/read-slip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64 })
-      });
-      if (!apiResponse.ok) throw new Error('API failed');
-      const data = await apiResponse.json();
-      if (data && data.amount) {
-        setStatus({ ok: 'อ่านได้ ' + G.money(data.amount) });
-        onResult({
-          amount: data.amount,
-          date: data.date || new Date().toISOString().slice(0, 10),
-          type: data.type === 'expense' ? 'expense' : 'income',
-          note: data.note || '',
-          slip: dataUrl,
-        });
-      } else {
-        setStatus({ err: 'อ่านยอดไม่ได้' });
-        onResult({ slip: dataUrl });
-      }
-    } catch (e) {
-      console.error('Slip error:', e);
-      setStatus({ err: 'AI อ่านไม่สำเร็จ' });
-      onResult({ slip: dataUrl });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return React.createElement('div', null,
-    React.createElement('div', {
-      className: 'dropzone ' + (over ? 'over' : ''),
-      onClick: () => inputRef.current?.click(),
-      onDragOver: (e) => { e.preventDefault(); setOver(true); },
-      onDragLeave: () => setOver(false),
-      onDrop: (e) => { e.preventDefault(); setOver(false); handleFile(e.dataTransfer.files[0]); }
-    },
-      preview ? React.createElement('div', { className: 'row gap-m', style: { alignItems: 'center', textAlign: 'left' } },
-        React.createElement('img', { src: preview, alt: 'slip', style: { width: 64, height: 64, objectFit: 'cover', border: '2px solid var(--lime)' } }),
-        React.createElement('div', { style: { flex: 1 } },
-          busy ? React.createElement('div', { className: 'row gap-s', style: { color: 'var(--lime-deep)' } },
-            React.createElement('span', { className: 'spin' }, '◠'),
-            React.createElement('span', { className: 'mono', style: { fontSize: 15 } }, status?.msg)
-          ) : React.createElement('div', { className: 'mono', style: { fontSize: 15, color: status?.err ? 'var(--red)' : 'var(--lime-deep)', fontWeight: 700 } }, status?.ok || status?.err)
-        )
-      ) : React.createElement('div', null,
-        React.createElement('div', { className: 'display', style: { fontSize: 22, color: 'var(--lime-deep)' } }, '⤓ ลากสลิปมาวาง'),
-        React.createElement('div', { className: 'mono', style: { fontSize: 14, color: 'var(--paper-ink-soft)', marginTop: 8 } }, 'AI จะอ่านยอดเงิน วันที่ และรายละเอียด')
-      )
-    ),
-    React.createElement('input', {
-      ref: inputRef,
-      type: 'file',
-      accept: 'image/*',
-      style: { display: 'none' },
-      onChange: (e) => handleFile(e.target.files?.[0])
-    })
-  );
-}
 
 /* ----- Add transaction modal ----- */
 function TxModal({ store, onClose }) {
   const G = window.GC;
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = React.useState({ type: 'income', cat: 'sale', amount: '', date: today, note: '', slip: null });
+  const [form, setForm] = React.useState({ type: 'income', cat: 'sale', amount: '', date: today, note: '' });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const cats = Object.entries(G.FIN_CATS).filter(([, c]) => c.type === form.type);
   
   React.useEffect(() => {
     if (!cats.find(([k]) => k === form.cat)) set('cat', cats[0]?.[0]);
   }, [form.type]);
-
-  function onAI(res) {
-    setForm(f => ({
-      ...f,
-      ...(res.amount != null && { amount: res.amount }),
-      ...(res.date && { date: res.date }),
-      ...(res.type && { type: res.type }),
-      ...(res.note && { note: res.note }),
-      ...(res.slip && { slip: res.slip })
-    }));
-  }
 
   function submit() {
     if (!form.amount || +form.amount <= 0) return;
@@ -130,13 +23,12 @@ function TxModal({ store, onClose }) {
   }
 
   return React.createElement(Modal, { title: 'บันทึกรายการเงิน', onClose, width: 580 },
-    React.createElement('div', { style: { marginBottom: 18 } }, React.createElement(SlipReader, { onResult: onAI })),
     React.createElement('div', { className: 'row gap-s', style: { marginBottom: 16 } },
       React.createElement('button', { className: 'btn sm ' + (form.type === 'income' ? '' : 'paper-btn'), onClick: () => set('type', 'income') }, '↘ รายรับ'),
       React.createElement('button', { className: 'btn sm ' + (form.type === 'expense' ? 'danger' : 'paper-btn'), onClick: () => set('type', 'expense') }, '↗ รายจ่าย')
     ),
     React.createElement('div', { className: 'grid', style: { gridTemplateColumns: '1fr 1fr', gap: 14 } },
-      React.createElement(Field, { label: 'จำนวนเงิน' },
+      React.createElement(Field, { label: 'จำนวนเงิน (บาท)' },
         React.createElement('input', { type: 'number', value: form.amount, onChange: e => set('amount', e.target.value), placeholder: '0', autoFocus: true })
       ),
       React.createElement(Field, { label: 'วันที่' },
