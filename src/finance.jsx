@@ -50,7 +50,6 @@ function SlipReader({ onResult }) {
     try {
       const base64 = dataUrl.split(',')[1];
       const mime = (dataUrl.match(/data:(.*?);/) || [])[1] || 'image/jpeg';
-      const base64 = dataUrl.split(',')[1];
       const apiResponse = await fetch('/api/read-slip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -198,9 +197,7 @@ function BulkModal({ store, onClose }) {
     setBusy(true);
     setStatus({ msg: 'AI กำลังอ่านทุกรายการ…' });
     try {
-      const base64 = dataUrl.split(',')[1];
       const mime = (dataUrl.match(/data:(.*?);/) || [])[1] || 'image/jpeg';
-      const base64 = dataUrl.split(',')[1];
       const apiResponse = await fetch('/api/read-slip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
